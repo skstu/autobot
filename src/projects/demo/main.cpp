@@ -1,65 +1,15 @@
-#include <iostream>
-#include <stl.h>
-#include <rapidjson.h>
-#include <Windows.h>
-
-using Key = int;
-
-class Types {//!@ 类型
-public:
-	Key key = 0;
-	std::string symbol;
-	std::string name;
-};
-
-enum class OperatorType : Key {
-	UNKNOWN = 0,
-	AND = 1,
-	OR = 2,
-	NOT = 3,
-	ADD = 4,
-	SUB = 5,
-	MUL = 6,
-	DIV = 7,
-	MOD = 8,
-	EQ = 9,
-	NE = 0xA,
-	GT = 0xB,
-	LT = 0xC,
-	GE = 0xD,
-	LE = 0xE,
-};
-enum class ObjectType : Key {
-	UNKNOWN = 0,
-	BOOLEAN = 1,
-	FLOAT = 2,//!@ 浮点型对象
-	DATA = 3, //!@ 数据对象 json(object)
-	OPERATOR = 4,//!@ 运算符对象
-	STRING = 5,//!@ 字符串对象
-	INTEGER = 6,//!@ 整型对象
-};
-static int load_interface();
-static int load_template();
-
-class Object {//!@ 对象
-public:
-	class Condition {
-	public:
-	};
-public:
-	ObjectType object_type_;
-	OperatorType operator_type_;
-	std::string name_;
-	std::string symbol_;
-};
-
+#include "stdafx.h"
 
 static std::string __gp_current_prodir;
 static std::map<Key, Types> __gp_map_object;
 static std::map<Key, Types> __gp_map_operator;
+static std::map<Key, Types> __gp_map_action;
+static int load_interface();
+static int load_template();
+
 int main(int argc, char* argv[]) {
 	char szPath[MAX_PATH];
-	DWORD dwRet = GetModuleFileNameA(GetModuleHandle(NULL), szPath, MAX_PATH);
+	DWORD dwRet = GetModuleFileNameA(GetModuleHandleA(NULL), szPath, MAX_PATH);
 	char* fch = strrchr(szPath, '\\');
 	if (!fch) {
 		fch = strrchr(szPath, '/');
@@ -71,26 +21,67 @@ int main(int argc, char* argv[]) {
 	load_interface();
 	load_template();
 
-	do {
-
-
-
-
-
-	} while (0);
-
-
-
-
 	return 0;
 }
 
+/*
+{
+	"type": 6,
+	"action": 1,
+	"operator": 9,
+	"objects": [
+		{
+			"comment":"player choice",
+			"type": 6,
+			"value": 1
+		},
+		{
+			"comment":"robot choice",
+			"type": 6,
+			"value": 3
+		}
+	]
+}
 
+import random
+
+user_choice = int(input("请选择（0石头/1剪刀/2布）："))
+computer_choice = random.randint(0, 2)
+
+print("你的选择：")
+
+if user_choice==0:
+	print("石头")
+else:
+	if user_choice==1:
+		print("剪刀")
+	else:
+		 print("布")
+print("计算机的选择：")
+if computer_choice==0:
+	print("石头")
+else:
+	if computer_choice==1:
+		print("剪刀")
+	else:
+		 print("布")
+
+if user_choice == computer_choice:
+	print("平局！")
+else:
+	if (user_choice == 0 and computer_choice == 1) or \
+		(user_choice == 1 and computer_choice == 2) or \
+		(user_choice == 2 and computer_choice == 0):
+		print( "你赢了！")
+	else:
+		print( "计算机赢了！")
+
+*/
 
 int load_interface() {
 	int result = 0;
 	do {
-		std::string file_buffer = stl::File::ReadFile(__gp_current_prodir + "interface.json");
+		std::string file_buffer = stl::File::ReadFile(__gp_current_prodir + "/../../../../doc/接口定义.json");
 		if (file_buffer.empty())
 			break;
 		rapidjson::Document doc;
@@ -119,6 +110,28 @@ int load_interface() {
 			}
 		} while (0);
 
+		do {//!@ Parser action
+			if (!doc.HasMember("action") || !doc["action"].IsArray())
+				break;
+			rapidjson::Value& ayAction = doc["action"];
+			for (rapidjson::Value* it = ayAction.Begin(); it != ayAction.End(); ++it) {
+				if (!it->HasMember("name") || !it->HasMember("symbol") || !it->HasMember("key"))
+					continue;
+				rapidjson::Value& theObj = *it;
+				if (!theObj["name"].IsString() || !theObj["symbol"].IsString() || !theObj["key"].IsUint())
+					continue;
+				Types op;
+				op.key = theObj["key"].GetUint();
+				op.name = theObj["name"].GetString();
+				op.symbol = theObj["name"].GetString();
+
+				auto exists = __gp_map_action.find(op.key);
+				if (exists != __gp_map_action.end())
+					__gp_map_action.erase(exists);
+				__gp_map_action.emplace(op.key, op);
+			}
+		} while (0);
+
 		do {//!@ Parser types
 			if (!doc.HasMember("object") || !doc["object"].IsArray())
 				break;
@@ -144,10 +157,55 @@ int load_interface() {
 	} while (0);
 	return result;
 }
+
+/*
+{
+	"type": 6,
+	"name":"result",
+	"action": 1,
+	"operator": 9,
+	"objects": [
+		{
+			"comment":"player choice",
+			"name":"player_choice",
+			"type": 6,
+			"value": 1
+		},
+		{
+			"comment":"robot choice",
+			"name":"robot_choice",
+			"type": 6,
+			"value": 3
+		}
+	]
+}
+*/
 int load_template() {
 	int result = 0;
 	do {
+		std::string file_buffer = stl::File::ReadFile(__gp_current_prodir + "/../../../../doc/数据模板.json");
+		if (file_buffer.empty())
+			break;
+		Object finalObj;
+		if (!(finalObj << file_buffer))
+			break;
 
+		switch (finalObj.operator_) {
+		case OperatorType::EQ: {
+
+		}break;
+		case OperatorType::AND: {
+
+		}break;
+		case OperatorType::OR: {
+
+		}break;
+		default:
+			break;
+		}
+
+
+		result = 1;
 	} while (0);
 	return result;
 }
